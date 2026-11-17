@@ -280,6 +280,165 @@ function finish(status,mult,result,isWin){
 
 updateBalance();
 </script>
+  <style>
+#scp-auth-overlay {
+  position:fixed; inset:0; z-index:999999;
+  display:flex; align-items:center; justify-content:center;
+  background:#080d1b; padding:18px; overflow:auto;
+  font-family:Arial,sans-serif;
+}
+#scp-auth-card {
+  width:100%; max-width:380px; background:#151f35;
+  color:white; padding:25px; border-radius:18px;
+  box-sizing:border-box; text-align:center;
+}
+#scp-auth-card input {
+  width:100%; box-sizing:border-box; padding:14px;
+  margin:10px 0; border:1px solid #52617b;
+  border-radius:9px; font-size:16px;
+}
+#scp-auth-card button {
+  width:100%; padding:14px; margin:8px 0;
+  background:#1687ff; color:white; border:0;
+  border-radius:9px; font-size:16px;
+}
+#scp-auth-status {font-size:13px;color:#ffd36a;}
+</style>
+
+<div id="scp-auth-overlay">
+  <div id="scp-auth-card">
+    <h2>✈️ SKY CRASH PRO</h2>
+    <p>Mobile OTP Login</p>
+
+    <p>अपना मोबाइल नंबर डालें</p>
+    <input id="scp-phone" type="tel"
+      maxlength="10" inputmode="numeric"
+      placeholder="10 अंकों का मोबाइल नंबर">
+
+    <div id="scp-recaptcha"></div>
+
+    <button id="scp-send">Send OTP</button>
+
+    <div id="scp-otp-area" style="display:none">
+      <input id="scp-otp" type="text"
+        maxlength="6" inputmode="numeric"
+        placeholder="6 अंकों का OTP">
+      <button id="scp-verify">Verify & Login</button>
+    </div>
+
+    <p id="scp-auth-status">
+      Demo Points की कोई नकद कीमत नहीं है।
+    </p>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp }
+from "https://www.gstatic.com/firebasejs/13.4.0/firebase-app.js";
+
+import {
+  getAuth,
+  RecaptchaVerifier,
+  signInWithPhoneNumber,
+  onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/13.4.0/firebase-auth.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyA0E7QWlVz4DfQ2OJJ0NUvRSb0KpH8YOJI",
+  authDomain: "sky-crash-pro.firebaseapp.com",
+  projectId: "sky-crash-pro",
+  storageBucket: "sky-crash-pro.firebasestorage.app",
+  messagingSenderId: "89452660513",
+  appId: "1:89452660513:web:0c3cf6272077c2bad66060",
+  measurementId: "G-PH6N3HQMZZ"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+auth.languageCode = "hi";
+
+let recaptchaVerifier = null;
+let confirmationResult = null;
+
+const overlay = document.getElementById("scp-auth-overlay");
+const phoneInput = document.getElementById("scp-phone");
+const otpInput = document.getElementById("scp-otp");
+const otpArea = document.getElementById("scp-otp-area");
+const statusBox = document.getElementById("scp-auth-status");
+const sendButton = document.getElementById("scp-send");
+const verifyButton = document.getElementById("scp-verify");
+
+onAuthStateChanged(auth, (user) => {
+  overlay.style.display = user ? "none" : "flex";
+});
+
+sendButton.addEventListener("click", async () => {
+  const phone = phoneInput.value.replace(/\D/g, "");
+
+  if (phone.length !== 10) {
+    statusBox.textContent = "सही 10 अंकों का नंबर डालें।";
+    return;
+  }
+
+  sendButton.disabled = true;
+  statusBox.textContent = "OTP भेजा जा रहा है...";
+
+  try {
+    if (!recaptchaVerifier) {
+      recaptchaVerifier = new RecaptchaVerifier(
+        auth,
+        "scp-recaptcha",
+        { size: "normal" }
+      );
+      await recaptchaVerifier.render();
+    }
+
+    confirmationResult = await signInWithPhoneNumber(
+      auth,
+      "+91" + phone,
+      recaptchaVerifier
+    );
+
+    otpArea.style.display = "block";
+    statusBox.textContent = "OTP भेज दिया गया है।";
+  } catch (error) {
+    statusBox.textContent = "समस्या: " + error.message;
+
+    if (recaptchaVerifier) {
+      await recaptchaVerifier.clear();
+      recaptchaVerifier = null;
+    }
+  }
+
+  sendButton.disabled = false;
+});
+
+verifyButton.addEventListener("click", async () => {
+  const code = otpInput.value.trim();
+
+  if (!confirmationResult) {
+    statusBox.textContent = "पहले Send OTP दबाएँ।";
+    return;
+  }
+
+  if (code.length !== 6) {
+    statusBox.textContent = "6 अंकों का OTP डालें।";
+    return;
+  }
+
+  verifyButton.disabled = true;
+  statusBox.textContent = "OTP चेक हो रहा है...";
+
+  try {
+    await confirmationResult.confirm(code);
+    statusBox.textContent = "Login सफल हुआ!";
+  } catch (error) {
+    statusBox.textContent = "गलत OTP या समस्या: " + error.message;
+  }
+
+  verifyButton.disabled = false;
+});
+</script>
 </body>
 </html>
 
